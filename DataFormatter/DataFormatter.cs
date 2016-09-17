@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -30,6 +31,62 @@ namespace VisualCyclone.DataFormatter
 
             // write dates and locations to formatted file
             File.WriteAllText(filePath, fileData.ToString());
+        }
+
+        // takes a directory and formats each file in the directory
+        public static void FormatDirectory(string inputDirName, string outputDirName)
+        {
+            Console.WriteLine("Formatting data in directory " + inputDirName + " for use...");
+
+            Directory.CreateDirectory(outputDirName);
+
+            string[] years;
+
+            // get each directory (year) within raw data
+            try
+            {
+                years = Directory.GetDirectories(inputDirName);
+            }
+
+            // if any sort of failure, delete the directory so program must rebuild formatted data again
+            catch (Exception ex)
+            {
+                FormatFailure(ex, outputDirName);
+                return;
+            }
+
+            foreach (var year in years)
+            {
+                var formattedYearPath = Path.Combine(outputDirName, Path.GetFileName(year));
+
+                // create year directory within formatted data directory
+                Directory.CreateDirectory(formattedYearPath);
+
+                var files = Directory.GetFiles(year);
+
+                foreach (var file in files)
+                {
+                    // create formatted file with year directory
+                    try
+                    {
+                        FormatFile(file, Path.GetFileName(file),
+                            formattedYearPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        FormatFailure(ex, outputDirName);
+                        return;
+                    }
+                }
+            }
+
+            Console.WriteLine("Data formatted. Formatted data located on your computer in " + outputDirName);
+        }
+
+        private static void FormatFailure(Exception ex, string dirToDelete)
+        {
+            Console.WriteLine("Data format failed! Error message: " + ex.Message);
+            Directory.Delete(dirToDelete, true);
         }
     }
 }
