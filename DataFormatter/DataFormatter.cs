@@ -1,9 +1,13 @@
 ﻿using System;
+using System.Data.SQLite;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Transactions;
+using VisualCycloneGUI.Cyclone;
 
-namespace VisualCyclone.DataFormatter
+namespace VisualCycloneGUI.DataFormatter
 {
 
     // formats data into a format that only includes tropical cyclones and their locations. 
@@ -13,80 +17,108 @@ namespace VisualCyclone.DataFormatter
         // todo: have program write / enforce version
         private readonly string Version = "0.1";
 
-        // takes a file and parses it line by line, returning a new file that includes only locations and dates.
-        public static void FormatFile(string fileName, string outputFileName, string outputFileLocation)
+        // creates a cyclone database. includes all cyclone dates and locations
+        public static void CreateDatabase(bool recreateFile = false)
         {
-            var filePath = outputFileLocation + "\\" + outputFileName;
+            var databaseFolderPath = Path.Combine(Environment.
+                GetFolderPath(
+                    Environment.SpecialFolder.CommonApplicationData
+                ),
+                "CycloneProjectData",
+                "CycloneDatabase");
 
-            // create stringbuilder for text to be added to file
-            var fileData = new StringBuilder();
+            CycloneDatabase.CreateDatabaseConnection("cyclonestest.sqlite");
 
+            if (!recreateFile && File.Exists("cyclonestest.sqlite")) return;
+
+            Console.Write("Building database...\n");
+
+            // create database from raw data
+            using (var tran = new TransactionScope())
+            {
+                CycloneDatabase.DbConnection.Open();
+                FeedDirectoryToDatabase("RawCycloneData", CycloneDatabase.DbConnection);
+
+                CycloneDatabase.DbConnection.Close();
+                tran.Complete();
+            }
+        }
+
+
+        // takes a file, parses the data, and feeds the data to a database
+        public static void FeedFileToDatabase(string fileName, SQLiteConnection db)
+        {
             // iterate through lines of file
             var lines = File.ReadLines(fileName);
             foreach (var lineData in lines.Select(line => line.Split(',')))
             {
-                // data is 3rd value, lat/lon are 7th and 8th
-                fileData.AppendLine((lineData[2] + ", " + lineData[6] + ", " + lineData[7]).Replace(" ", ""));
-            }
+                // date is 3rd value, lat/lon are 7th and 8th
+                var date = lineData[2].Replace(" ", "");
 
-            // write dates and locations to formatted file
-            File.WriteAllText(filePath, fileData.ToString());
+                // parse lat/lon with a regex. splits it into two parts: number and direction
+                var regex = new Regex(@"(\d+)([a-zA-Z]+)");
+                var latitude = regex.Match(lineData[6].Replace(" ", ""));
+
+                // but wait! values are stored in tenths of degrees. e.g. 78 = 7.8, 152 = 15.2
+                // divide by 10 to solve this
+                var latVal = float.Parse(latitude.Groups[1].Value) / 10f;
+                var latDir = Convert.ToChar(latitude.Groups[2].Value);
+
+                var longitude = regex.Match(lineData[7].Replace(" ", ""));
+
+                var lonVal = float.Parse(longitude.Groups[1].Value) / 10f;
+                var lonDir = Convert.ToChar(longitude.Groups[2].Value);
+
+                var sql = "insert into cyclones " +
+                             "values ('" + date + "', + " + latVal + ", '" + latDir + "', " + lonVal + ", '" + lonDir + "')";
+
+                var command = new SQLiteCommand(sql, db);
+                command.ExecuteNonQuery();
+            }
         }
 
-        // takes a directory and formats each file in the directory
-        public static void FormatDirectory(string inputDirName, string outputDirName)
+        // takes a directory and parses each file in it and adds the data in each file to a specified database
+        public static void FeedDirectoryToDatabase(string dirName, SQLiteConnection db)
         {
-            Console.WriteLine("Formatting data in directory " + inputDirName + " for use...");
-
-            Directory.CreateDirectory(outputDirName);
-
             string[] years;
 
             // get each directory (year) within raw data
             try
             {
-                years = Directory.GetDirectories(inputDirName);
+                years = Directory.GetDirectories(dirName);
             }
 
-            // if any sort of failure, delete the directory so program must rebuild formatted data again
+            // if any sort of failure, delete the directory so program must database again
             catch (Exception ex)
             {
-                FormatFailure(ex, outputDirName);
+                FormatFailure(ex);
                 return;
             }
 
             foreach (var year in years)
             {
-                var formattedYearPath = Path.Combine(outputDirName, Path.GetFileName(year));
-
                 // create year directory within formatted data directory
-                Directory.CreateDirectory(formattedYearPath);
 
                 var files = Directory.GetFiles(year);
-
                 foreach (var file in files)
                 {
                     // create formatted file with year directory
                     try
                     {
-                        FormatFile(file, Path.GetFileName(file),
-                            formattedYearPath);
+                        FeedFileToDatabase(file, db);
                     }
                     catch (Exception ex)
                     {
-                        FormatFailure(ex, outputDirName);
+                        FormatFailure(ex);
                         return;
                     }
                 }
             }
-
-            Console.WriteLine("Data formatted. Formatted data located on your computer in " + outputDirName);
         }
 
-        private static void FormatFailure(Exception ex, string dirToDelete)
+        private static void FormatFailure(Exception ex)
         {
-            Console.WriteLine("Data format failed! Error message: " + ex.Message);
-            Directory.Delete(dirToDelete, true);
+            Console.WriteLine("Database creation failed! Error message: " + ex.Message);
         }
     }
 }
