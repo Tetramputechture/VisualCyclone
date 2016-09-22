@@ -2,11 +2,13 @@
 
 namespace VisualCycloneGUI
 {
-    /// <summary>
-    ///     Interaction logic for App.xaml
-    /// </summary>
     public partial class App
     {
+        /*
+         * Specifies things to do regarding window creation. 
+         * We size the window according to the user's screensize and this is easier to do programmatically 
+         * rather than in xaml.
+        */
         private void AppStart(object sender, StartupEventArgs e)
         {
             // create main window

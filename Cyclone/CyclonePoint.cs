@@ -3,28 +3,41 @@ using OxyPlot;
 
 namespace VisualCycloneGUI.Cyclone
 {
+    /*
+     * Provides info about a cyclone. Currently stores date and location information.
+     * Used by OxyPlot to graph the point, specified by GetDataPoint
+    */
     public class CyclonePoint : IDataPointProvider
     {
-        // the date associated with this cyclone
+        /*
+         * the date associated with this cyclone
+        */
         public DateTime Date { get; set; }
 
-        // the latidude value of the cyclone
+        /*
+         * the latidude value of the cyclone
+        */
         public float LatitudeValue { get; set; }
 
-        // the latidude direction of the cyclone. must be N or S
+        /*
+         * the latidude direction of the cyclone. must be N or S
+        */
         public string LatitudeDirection { get; set; }
 
-        // the longitude value of the cyclone
+        /* 
+         * the longitude value of the cyclone
+        */
         public float LongitudeValue { get; set; }
 
-        // the longitude direction of the cyclone. must be E or W
+        /*
+         * the longitude direction of the cyclone. must be E or W
+        */
         public string LongitudeDirection { get; set; }
 
         public CyclonePoint(string date, float latitudeValue, string latitudeDirection, float longitudeValue,
             string longitudeDirection)
         {
-            Date = new DateTime(int.Parse(date.Substring(0, 4)), int.Parse(date.Substring(4, 2)),
-                int.Parse(date.Substring(6, 2)), int.Parse(date.Substring(8, 2)), 0, 0);
+            Date = Convert.ToDateTime(date);
 
             LatitudeValue = latitudeValue;
             LatitudeDirection = latitudeDirection;

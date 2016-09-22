@@ -1,24 +1,59 @@
-﻿using System.Data.SQLite;
+﻿using System;
+using System.Data.SQLite;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Transactions;
 
 namespace VisualCycloneGUI.Cyclone
 {
+    /*
+     * A Cyclone Database that stores cyclone information in an SQLite database. 
+    */
+
     public class CycloneDatabase
     {
-        public static SQLiteConnection DbConnection;
+        /*
+         * The SQLiteConnection associated with this database. 
+        */
+        public SQLiteConnection DbConnection { get; }
 
-        public static void CreateDatabaseConnection(string filename)
+        /*
+         * The fileName associated with this database.
+        */
+        public string DbFileName { get; }
+
+        /*
+         * If this database has been created before.
+        */
+        public bool IsExistingDb { get; }
+
+        /*
+         * Constructs a new CycloneDatabase with the specified fileName,
+         * or establishes a connection with an existing cyclone database.
+        */
+
+        public CycloneDatabase(string fileName)
         {
-            var databaseBuilt = File.Exists(filename);
+            DbFileName = fileName;
 
-            if (!databaseBuilt)
-                SQLiteConnection.CreateFile(filename);
+            // check if file already exists
+            IsExistingDb = File.Exists(DbFileName);
 
-            DbConnection = new SQLiteConnection($"Data Source={filename};Version=3;");
+            // create file if it doesn't
+            if (!IsExistingDb)
+                SQLiteConnection.CreateFile(DbFileName);
 
-            if (databaseBuilt) return;
+            // establish database connection with file
+            DbConnection = new SQLiteConnection($"Data Source={DbFileName};Version=3;datetimeformat=CurrentCulture");
+
+            // if the database hasn't been built yet, build it. otherwise the connection is made and we are done. 
+            if (IsExistingDb) return;
+
+            // open connection for writing
             DbConnection.Open();
 
+            // create table
             const string sql = "create table cyclones (" +
                                "date date, " +
                                "latitudeValue decimal(3, 1), " +
@@ -29,6 +64,97 @@ namespace VisualCycloneGUI.Cyclone
             var command = new SQLiteCommand(sql, DbConnection);
             command.ExecuteNonQuery();
 
+            // close connection
+            DbConnection.Close();
+        }
+
+        /*
+         * Parses a file and inserts the relevant data into this database. 
+        */
+
+        private void InsertDataFromFile(string fileName)
+        {
+            // iterate through lines of file
+            var lines = File.ReadLines(fileName);
+            foreach (var lineData in lines.Select(line => line.Split(',')))
+            {
+                // date is 3rd value, lat/lon are 7th and 8th
+                // make date in format yyyy-mm-dd hh:mm
+                var date = lineData[2].Replace(" ", "");
+                date = date.Substring(0, 4) + "-" + date.Substring(4, 2) + "-" + date.Substring(6, 2) + " " +
+                       date.Substring(8, 2) + ":00";
+
+                // parse lat/lon with a regex. splits it into two parts: number and direction
+                var regex = new Regex(@"(\d+)([a-zA-Z]+)");
+                var latitude = regex.Match(lineData[6].Replace(" ", ""));
+
+                // but wait! values are stored in tenths of degrees. e.g. 78 = 7.8, 152 = 15.2
+                // divide by 10 to solve this
+                var latVal = float.Parse(latitude.Groups[1].Value)/10f;
+                var latDir = Convert.ToChar(latitude.Groups[2].Value);
+
+                var longitude = regex.Match(lineData[7].Replace(" ", ""));
+
+                var lonVal = float.Parse(longitude.Groups[1].Value)/10f;
+                var lonDir = Convert.ToChar(longitude.Groups[2].Value);
+
+                var sql = "insert into cyclones " +
+                          "values ('" + date + "', + " + latVal + ", '" + latDir + "', " + lonVal + ", '" + lonDir +
+                          "')";
+
+                var command = new SQLiteCommand(sql, DbConnection);
+                command.ExecuteNonQuery();
+            }
+        }
+
+        /*
+         * Reads through each file in a directory and inserts the relevant data into this database. 
+        */
+
+        public void InsertDataFromDirectory(string dirName)
+        {
+            using (var tran = new TransactionScope())
+            {
+                DbConnection.Open();
+
+                string[] years;
+
+                // get each directory (year) within raw data
+                try
+                {
+                    years = Directory.GetDirectories(dirName);
+                }
+
+                    // if any sort of failure, delete the directory so program must database again
+                catch (Exception ex)
+                {
+                    DatabaseInsertionFailure(ex);
+                    return;
+                }
+
+                foreach (var file in years.Select(Directory.GetFiles).SelectMany(files => files))
+                {
+                    // create formatted file with year directory
+                    try
+                    {
+                        InsertDataFromFile(file);
+                    }
+                    catch (Exception ex)
+                    {
+                        DatabaseInsertionFailure(ex);
+                        return;
+                    }
+                }
+
+                DbConnection.Close();
+                tran.Complete();
+            }
+        }
+
+        private void DatabaseInsertionFailure(Exception ex)
+        {
+            Console.WriteLine("Database creation failed! Error message: " + ex.Message);
+            // close database connection if we encounter an exception while the connection is open
             DbConnection.Close();
         }
     }
