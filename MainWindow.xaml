@@ -5,7 +5,7 @@
         Title="VisualCyclone" Height="350" Width="525">
     <Grid Width="700">
         <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-            <oxy:PlotView Model="{Binding DataPlot}" Height="500" Width="500" HorizontalAlignment="Center"
+            <oxy:PlotView Model="{Binding PathPlot}" Height="500" Width="500" HorizontalAlignment="Center"
                           VerticalAlignment="Bottom" />
             <StackPanel Orientation="Horizontal">
                 <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
@@ -13,9 +13,9 @@
                     <StackPanel Orientation="Horizontal" Margin="20, 10, 20, 10" HorizontalAlignment="Center">
                         <Label Content="Start: " FontSize="20" />
                         <TextBox Name="LowerLatitudeTextBox" Width="44" MaxLength="4" FontSize="20"
-                                 VerticalContentAlignment="Center" PreviewTextInput="CheckLatitudeInput" Text="0"
+                                 VerticalContentAlignment="Center" PreviewTextInput="CheckLowerLatitudeInput" Text="20"
                                  TextChanged="LowerLatBoundChanged" />
-                        <ComboBox FontSize="20">
+                        <ComboBox Name="LowerLatitudeDirection" SelectedValuePath="Content" FontSize="20" SelectionChanged="LowerLatDirChanged">
                             <ComboBoxItem>N</ComboBoxItem>
                             <ComboBoxItem IsSelected="True">S</ComboBoxItem>
                         </ComboBox>
@@ -23,9 +23,9 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Label Content="End: " FontSize="20" />
                         <TextBox Name="UpperLatitudeTextBox" Width="44" MaxLength="4" FontSize="20"
-                                 VerticalContentAlignment="Center" PreviewTextInput="CheckLatitudeInput" Text="20"
+                                 VerticalContentAlignment="Center" PreviewTextInput="CheckUpperLatitudeInput" Text="0"
                                  TextChanged="UpperLatBoundChanged" />
-                        <ComboBox FontSize="20">
+                        <ComboBox Name="UpperLatitudeDirection" SelectedValuePath="Content" FontSize="20" SelectionChanged="UpperLatDirChanged">
                             <ComboBoxItem>N</ComboBoxItem>
                             <ComboBoxItem IsSelected="True">S</ComboBoxItem>
                         </ComboBox>
@@ -36,9 +36,9 @@
                     <StackPanel Orientation="Horizontal" Margin="20, 10, 20, 10" HorizontalAlignment="Center">
                         <Label Content="Start: " FontSize="20" />
                         <TextBox Name="LowerLongitudeTextBox" Width="54" MaxLength="5" FontSize="20"
-                                 VerticalContentAlignment="Center" PreviewTextInput="CheckLongitudeInput" Text="160"
+                                 VerticalContentAlignment="Center" PreviewTextInput="CheckLowerLongitudeInput" Text="180"
                                  TextChanged="LowerLonBoundChanged" />
-                        <ComboBox FontSize="20">
+                        <ComboBox Name="LowerLongitudeDirection" SelectedValuePath="Content" FontSize="20" SelectionChanged="LowerLonDirChanged">
                             <ComboBoxItem>E</ComboBoxItem>
                             <ComboBoxItem IsSelected="True">W</ComboBoxItem>
                         </ComboBox>
@@ -46,9 +46,9 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Label Content="End: " FontSize="20" />
                         <TextBox Name="UpperLongitudeTextBox" Width="54" MaxLength="4" FontSize="20"
-                                 VerticalContentAlignment="Center" PreviewTextInput="CheckLongitudeInput" Text="180"
+                                 VerticalContentAlignment="Center" PreviewTextInput="CheckUpperLongitudeInput" Text="160"
                                  TextChanged="UpperLonBoundChanged" />
-                        <ComboBox FontSize="20">
+                        <ComboBox Name="UpperLongitudeDirection" SelectedValuePath="Content" FontSize="20" SelectionChanged="UpperLonDirChanged">
                             <ComboBoxItem>E</ComboBoxItem>
                             <ComboBoxItem IsSelected="True">W</ComboBoxItem>
                         </ComboBox>

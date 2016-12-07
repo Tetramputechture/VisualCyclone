@@ -54,8 +54,10 @@ namespace VisualCycloneGUI.Cyclone
             DbConnection.Open();
 
             // create table
+            // format: date, storm ID, latitude (in degrees north), longitude (in degrees east)
             const string sql = "create table cyclones (" +
                                "date date, " +
+                               "stormID integer, " +
                                "latitudeValue decimal(3, 1), " +
                                "latitudeDirection char(1), " +
                                "longitudeValue decimal(3, 1)," +
@@ -78,28 +80,41 @@ namespace VisualCycloneGUI.Cyclone
             var lines = File.ReadLines(fileName);
             foreach (var lineData in lines.Select(line => line.Split(',')))
             {
-                // date is 3rd value, lat/lon are 7th and 8th
+                // date is 3rd value, stormID is 2nd, lat/lon are 7th and 8th
                 // make date in format yyyy-mm-dd hh:mm
                 var date = lineData[2].Replace(" ", "");
                 date = date.Substring(0, 4) + "-" + date.Substring(4, 2) + "-" + date.Substring(6, 2) + " " +
                        date.Substring(8, 2) + ":00";
 
+                var stormID = int.Parse(lineData[1]);
+
                 // parse lat/lon with a regex. splits it into two parts: number and direction
                 var regex = new Regex(@"(\d+)([a-zA-Z]+)");
+
                 var latitude = regex.Match(lineData[6].Replace(" ", ""));
 
                 // but wait! values are stored in tenths of degrees. e.g. 78 = 7.8, 152 = 15.2
                 // divide by 10 to solve this
+                // also, latitude values are stored in degrees north, and longitude values in degrees east
+                // to solve this, if latitude direction is "S" or longitude direction is "W", make value negative
                 var latVal = float.Parse(latitude.Groups[1].Value)/10f;
                 var latDir = Convert.ToChar(latitude.Groups[2].Value);
+                if (latDir == 'S')
+                {
+                    latVal = -latVal;
+                }
 
                 var longitude = regex.Match(lineData[7].Replace(" ", ""));
 
                 var lonVal = float.Parse(longitude.Groups[1].Value)/10f;
                 var lonDir = Convert.ToChar(longitude.Groups[2].Value);
+                if (lonDir == 'W')
+                {
+                    lonVal = -lonVal;
+                }
 
                 var sql = "insert into cyclones " +
-                          "values ('" + date + "', + " + latVal + ", '" + latDir + "', " + lonVal + ", '" + lonDir +
+                          "values ('" + date + "', + " + stormID + ", " + latVal + ", '" + latDir + "', " + lonVal + ", '" + lonDir +
                           "')";
 
                 var command = new SQLiteCommand(sql, DbConnection);
